@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { Fragment, useContext, useState } from 'react'
 
 import Modal from '../UI/Modal'
 import CartItem from './CartItem'
@@ -10,6 +10,8 @@ const BASE_URL = 'https://react-http-2f56a-default-rtdb.firebaseio.com/'
 
 const Cart = (props) => {
   const [isCheckout, setIsCheckout] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [didSubmit, setDidSubmit] = useState(false)
   const cartCtx = useContext(CartContext)
 
   const totalAmount = `$${cartCtx.totalAmount.toFixed(2)}`
@@ -27,14 +29,18 @@ const Cart = (props) => {
     setIsCheckout(true)
   }
 
-  const submitOrderHandler = (userData) => {
-    fetch(`${BASE_URL}/orders.json`, {
+  const submitOrderHandler = async (userData) => {
+    setIsSubmitting(true)
+    await fetch(`${BASE_URL}/orders.json`, {
       method: 'POST',
       body: JSON.stringify({
         user: userData,
-        orderItems: cartCtx.items
-      })
+        orderItems: cartCtx.items,
+      }),
     })
+    setIsSubmitting(false)
+    setDidSubmit(true)
+    cartCtx.clearCart();
   }
 
   const cartItems = (
@@ -60,15 +66,33 @@ const Cart = (props) => {
       <button className={classes.button} onClick={orderHandler}>Order</button>}
   </div>
 
-  return (
-    <Modal onClose={props.onClose}>
+  const cartModalContent = (
+    <Fragment>
       {cartItems}
       <div className={classes.total}>
         <span>Total Amount</span>
         <span>{totalAmount}</span>
       </div>
-      {isCheckout && <Checkout onConfirm={submitOrderHandler} onCancel={props.onClose}/>}
+      {isCheckout &&
+        <Checkout onConfirm={submitOrderHandler} onCancel={props.onClose}/>}
       {!isCheckout && modalActions}
+    </Fragment>
+  )
+
+  const isSubmittingModalContent = <p>Sending order data...</p>
+
+  const didSubmitModalContent = <Fragment>
+    <p>Successfully sent the order!</p>
+    <div className={classes.actions}>
+      <button className={classes.button} onClick={props.onClose}>Close</button>
+    </div>
+  </Fragment>
+
+  return (
+    <Modal onClose={props.onClose}>
+      {!isSubmitting && !didSubmit && cartModalContent}
+      {isSubmitting && isSubmittingModalContent}
+      {!isSubmitting && didSubmit && didSubmitModalContent}
     </Modal>
   )
 }
